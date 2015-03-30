@@ -1,0 +1,14 @@
+{application, qs_python, [
+    {description, ""},
+    {vsn, "1"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        lager,
+        pooler,
+        erlport
+    ]},
+    {mod, { qs_python_app, []}},
+    {env, []}
+]}.

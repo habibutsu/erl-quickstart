@@ -1,0 +1,4 @@
+-name quickstart@127.0.0.1
+-setcookie quickstart
+
+-env ERL_CRASH_DUMP logs/erl_crash.dump

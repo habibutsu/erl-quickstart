@@ -1,0 +1,13 @@
+{application, qs_amqp, [
+    {description, ""},
+    {vsn, "1"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        lager,
+        pooler
+    ]},
+    {mod, { qs_amqp_app, []}},
+    {env, []}
+]}.

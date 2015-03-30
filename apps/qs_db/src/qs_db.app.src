@@ -1,0 +1,13 @@
+{application, qs_db, [
+    {description, ""},
+    {vsn, "1"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        lager,
+        pooler
+    ]},
+    {mod, { qs_db_app, []}},
+    {env, []}
+ ]}.
