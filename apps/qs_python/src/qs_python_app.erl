@@ -11,25 +11,9 @@
 
 start(_StartType, _StartArgs) ->
     register(?MODULE, self()),
-    qs_python_sup:start_link().
+    qs_python:start_pool(),
+    {ok, self()}.
 
 stop(_State) ->
+    qs_python:stop_pool(),
     ok.
-
-% start(_StartType, _StartArgs) ->
-%     register(?MODULE, self()),
-%     {ok, InitCount} = application:get_env(qs_python, init_count),
-%     {ok, MaxCount} = application:get_env(qs_python, max_count),
-
-%     PoolConfig = [
-%         {name, qs_python_pool},
-%         {init_count, InitCount},
-%         {max_count, MaxCount},
-%         {start_mfa, {qs_python_worker, start_link, []}}
-%     ],
-%     pooler:new_pool(PoolConfig),
-%     {ok, self()}.
-
-% stop(_State) ->
-%     pooler:rm_pool(qs_python_pool),
-%     ok.
