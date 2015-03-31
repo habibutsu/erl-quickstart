@@ -6,7 +6,8 @@
         kernel,
         stdlib,
         lager,
-        pooler
+        pooler,
+        amqp_client
     ]},
     {mod, { qs_amqp_app, []}},
     {env, []}

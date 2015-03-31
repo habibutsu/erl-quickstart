@@ -2,7 +2,8 @@
 
 -export([
     call/3,
-    start_pool/0
+    start_pool/0,
+    stop_pool/0
 ]).
 
 -define(TIMEOUT, 1000).
@@ -20,7 +21,7 @@ call(Module, Fun, Params) ->
             end;
         error_no_members ->
             PoolStats = pooler:pool_stats(qs_python_pool),
-            lager:error("Python pool overload: ~p", [PoolStats]),
+            lager:error("Pool overload: ~p", [PoolStats]),
             {error, no_members}
     end.
 

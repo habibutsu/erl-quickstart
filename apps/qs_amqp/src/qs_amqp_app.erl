@@ -11,7 +11,9 @@
 
 start(_StartType, _StartArgs) ->
     register(?MODULE, self()),
-    qs_amqp_sup:start_link().
+    qs_amqp:start_pool(),
+    {ok, self()}.
 
 stop(_State) ->
+    qs_amqp:stop_pool(),
     ok.
