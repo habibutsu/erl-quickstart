@@ -34,36 +34,43 @@ start_link(Params) ->
 
 init(Params) ->
     process_flag(trap_exit, true),
-    %gen_server:cast(self(), {delayed_init, Params}),
-    erlang:send(self(), connect),
+    erlang:send(self(), open_connection),
     {ok, #state{params=Params}}.
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-
+handle_call(close_connection, _From, State) ->
+    {reply, ok, close_connection(State)};
 handle_call({publish, Exchange, RoutingKey, Payload}, _From, State) ->
-
-    Command = #'basic.publish'{exchange=Exchange, routing_key=RoutingKey},
-    Message = #amqp_msg{payload=Payload},
-    amqp_channel:cast(State#state.channel, Command, Message),
-    {reply, ok, State};
-
+    case {State#state.connection, State#state.channel} of
+        {undefined, _} ->
+            {reply, {error, no_connection}, State};
+        {_, undefined} ->
+            {reply, {error, no_channel}, State};
+        _ ->
+            Command = #'basic.publish'{
+                exchange=Exchange, routing_key=RoutingKey},
+            Message = #amqp_msg{payload=Payload},
+            amqp_channel:call(State#state.channel, Command, Message),
+            {reply, ok, State}
+    end;
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
-handle_info(connect, State) ->
-    case connect(State) of
+handle_info(open_connection, State) ->
+    case open_connection(State) of
         {ok, UpdState} ->
             {noreply, UpdState};
         {error, UpdState} ->
             {noreply, reconnect(UpdState)}
     end;
+
 handle_info({'DOWN', Ref, process, _Pid, Reason}, State)->
     lager:debug("DOWN ~p / ~p", [Ref, Reason]),
     {stop, channel_error, State};
-handle_info(Info, State) ->
-    lager:debug("~p", [Info]),
+handle_info(Message, State) ->
+    lager:info("Info / Msg: ~p, State: ~p", [Message, State]),
     {noreply, State}.
 
 terminate(Reason, State) ->
@@ -73,12 +80,11 @@ terminate(Reason, State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-
-connect(State) ->
+open_connection(State) ->
     lager:info("Connect ~p", [State#state.params]),
     case amqp_connection:start(State#state.params) of
         {ok, Connection} ->
-            link(Connection),
+            erlang:link(Connection),
             case amqp_connection:open_channel(Connection) of
                 {ok, Channel} ->
                     ConnectionRef = erlang:monitor(process, Connection),
@@ -98,26 +104,39 @@ connect(State) ->
             {error, State}
     end.
 
-close_connection(#state{connection = Connection, channel = Channel}) ->
-    case is_pid(Channel) of
-        true ->
-            lager:debug("Closing amqp channel ~p", [Channel]),
-            amqp_channel:close(Channel);
-        _ ->
-            ok
-    end,
-    case is_pid(Connection) of
-        true ->
-            lager:debug("Closing amqp connection ~p", [Connection]),
-            amqp_connection:close(Connection);
-        _ ->
-            ok
+close_connection(State) ->
+    UpdState = close_channel(State),
+    case UpdState#state.connection of
+        undefined ->
+            lager:debug("Connection already closed"),
+            State;
+        Pid ->
+            lager:debug("Closing amqp connection ~p", [Pid]),
+            erlang:demonitor(UpdState#state.connection_ref),
+            amqp_connection:close(Pid),
+            UpdState#state{
+                connection = undefined,
+                connection_ref = undefined}
+    end.
+
+close_channel(State) ->
+    case State#state.channel of
+        undefined ->
+            lager:debug("Channel already closed"),
+            State;
+        Pid ->
+            lager:debug("Closing amqp channel ~p", [Pid]),
+            erlang:demonitor(State#state.channel_ref),
+            amqp_channel:close(Pid),
+            State#state{
+                channel = undefined,
+                channel_ref = undefined}
     end.
 
 reconnect(#state{reconnect_attempt = R} = State) ->
     Pow = min(?MAX_RECONNECT_EXPONENT, R),
     T = random:uniform(erlang:round(math:pow(2, Pow)) * ?RECONNECT_INTERVAL),
-    erlang:send_after(T, self(), connect),
+    erlang:send_after(T, self(), open_connection),
 
     R1 = R + 1,
     MaxReconectInterval = erlang:round(

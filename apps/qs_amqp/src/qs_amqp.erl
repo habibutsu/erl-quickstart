@@ -19,11 +19,15 @@ start_pool() ->
     {ok, Username} = application:get_env(qs_amqp, username),
     {ok, Password} = application:get_env(qs_amqp, password),
     {ok, Vhost} = application:get_env(qs_amqp, virtual_host),
+    {ok, Heartbeat} = application:get_env(qs_amqp, heartbeat),
+    {ok, ConnectionTimeout} = application:get_env(qs_amqp, connection_timeout),
 
     Params = #amqp_params_network{
         host=Host, port=Port,
         username=Username, password=Password,
-        virtual_host=Vhost},
+        virtual_host=Vhost,
+        heartbeat=Heartbeat,
+        connection_timeout=ConnectionTimeout*1000},
     %Params = {amqp_params_network, Host, Port, list_to_binary(Username), list_to_binary(Password), list_to_binary(Vhost)}
     PoolConfig = [
         {name, qs_amqp_pool},
@@ -34,6 +38,15 @@ start_pool() ->
     pooler:new_pool(PoolConfig).
 
 stop_pool() ->
+    % Temporary fix - https://github.com/seth/pooler/pull/45
+    % TODO: change way to stop amqp pool
+    Stats = pooler:pool_stats(qs_amqp_pool),
+    lists:foreach(
+        fun({Worker, Info}) ->
+            gen_server:call(Worker, close_connection)
+        end,
+        Stats
+    ),
     pooler:rm_pool(qs_amqp_pool).
 
 

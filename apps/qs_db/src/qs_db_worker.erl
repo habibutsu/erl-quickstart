@@ -25,17 +25,17 @@ init(Args) ->
     end),
     {ok, []}.
 
-handle_call(Request, From, State) ->
+handle_call(Message, From, State) ->
     lager:info(
-        "Call / Request: ~p, From: ~p, State: ~p", [Request, From, State]),
+        "Call / Message: ~p, From: ~p, State: ~p", [Message, From, State]),
     {reply, ok, State}.
 
 handle_cast(Message, State) ->
     lager:info("Cast / Message: ~p, State: ~p", [Message, State]),
     {noreply, State}.
 
-handle_info(Msg, State) ->
-    lager:info("Info / Msg: ~p, State: ~p", [Msg, State]),
+handle_info(Message, State) ->
+    lager:info("Info / Msg: ~p, State: ~p", [Message, State]),
     {noreply, State}.
 
 terminate(Reason, State) ->
