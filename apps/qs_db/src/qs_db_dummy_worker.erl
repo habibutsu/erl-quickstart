@@ -1,4 +1,4 @@
--module(qs_db_worker).
+-module(qs_db_dummy_worker).
 
 -behaviour(gen_server).
 

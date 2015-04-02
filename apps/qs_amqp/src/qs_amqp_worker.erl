@@ -34,6 +34,7 @@ start_link(Params) ->
 
 init(Params) ->
     process_flag(trap_exit, true),
+    random:seed(now()),
     erlang:send(self(), open_connection),
     {ok, #state{params=Params}}.
 
