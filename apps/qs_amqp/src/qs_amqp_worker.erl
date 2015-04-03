@@ -15,8 +15,8 @@
 
 -include_lib("amqp_client/include/amqp_client.hrl").
 
--define(RECONNECT_INTERVAL, 500).
--define(MAX_RECONNECT_EXPONENT, 6).     % max time to next reconnect is RECONNECT_INTERVAL * 2^MAX_RECONNECT_EXPONENT
+-define(MAX_RECONNECT_TIMEOUT, 1000*30).
+-define(MIN_RECONNECT_TIMEOUT, 200).
 
 -record(state, {
     connection            :: pid(),
@@ -24,9 +24,8 @@
     channel               :: pid(),
     channel_ref           :: reference(), 
     params                :: #amqp_params_network{},
-    connected = false     :: boolean(),
-    timeout               :: non_neg_integer(),
-    reconnect_attempt = 0 :: non_neg_integer()}).
+    reconnect_attempt = 0 :: non_neg_integer(),
+    reconnect_timeout = 0 :: non_neg_integer()}).
 
 
 start_link(Params) ->
@@ -134,15 +133,28 @@ close_channel(State) ->
                 channel_ref = undefined}
     end.
 
-reconnect(#state{reconnect_attempt = R} = State) ->
-    Pow = min(?MAX_RECONNECT_EXPONENT, R),
-    T = random:uniform(erlang:round(math:pow(2, Pow)) * ?RECONNECT_INTERVAL),
-    erlang:send_after(T, self(), open_connection),
+reconnect(#state{
+        reconnect_attempt = R,
+        reconnect_timeout = T} = State) ->
+    case T of
+        ?MAX_RECONNECT_TIMEOUT ->
+            reconnect_after(R, ?MIN_RECONNECT_TIMEOUT, T),
+            State#state{reconnect_attempt = R + 1};
+        _ ->
+            T2 = min(
+                exponential_backoff(R, ?MIN_RECONNECT_TIMEOUT),
+                ?MAX_RECONNECT_TIMEOUT),
+            reconnect_after(R, ?MIN_RECONNECT_TIMEOUT, T2),
+            State#state{reconnect_attempt=R + 1, reconnect_timeout=T2}
+    end.
 
-    R1 = R + 1,
-    MaxReconectInterval = erlang:round(
-        math:pow(2, ?MAX_RECONNECT_EXPONENT)) * ?RECONNECT_INTERVAL,
-    lager:error(
-        "after ~p ms (max ~p ms), attempt ~p",
-        [T, MaxReconectInterval, R1]),
-    State#state{connected = false, reconnect_attempt = R1}.
+reconnect_after(R, Tmin, Tmax) ->
+    Delay = rand_range(Tmin, Tmax),
+    lager:error("Reconnect after ~w ms (attempt ~w)", [Delay, R]),
+    erlang:send_after(Delay, self(), open_connection).
+
+rand_range(Min, Max) ->
+    max(random:uniform(Max), Min).
+
+exponential_backoff(N, T) ->
+    erlang:round(math:pow(2, N)) * T.
