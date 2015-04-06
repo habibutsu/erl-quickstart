@@ -1,7 +1,8 @@
 -module(qs_db).
 
 -export([
-    call/0,
+    transaction/1,
+    equery/2,
     start_pool/1,
     stop_pool/0
 ]).
@@ -21,6 +22,8 @@ start_pool(dummy) ->
     ],
     pooler:new_pool(PoolConfig);
 start_pool(epgsql) ->
+    {ok, _} = application:ensure_all_started(epgsql),
+
     {ok, InitCount} = application:get_env(qs_db, init_count),
     {ok, MaxCount} = application:get_env(qs_db, max_count),
 
@@ -52,13 +55,27 @@ start_pool(epgsql) ->
 stop_pool() ->
     pooler:rm_pool(qs_db_pool).
 
-call() ->
+equery(Stmt, Params) ->
+    transaction(
+        fun(Worker) ->
+            equery({worker, Worker}, {equery, Stmt, Params}, infinity)
+        end).
+
+equery({worker, Worker}, Stmt, Params) ->
+    gen_server:call(Worker, {equery, Stmt, Params}, infinity).
+
+transaction(Fun) ->
     case pooler:take_member(qs_db_pool, ?TIMEOUT) of
         Worker when is_pid(Worker) ->
+            W = {worker, Worker},
             try
-                Worker ! hello
+                equery(W, "BEGIN", []),
+                Result = Fun(Worker),
+                equery(W, "COMMIT", []),
+                Result
             catch
                 Err:Reason ->
+                    equery(W, "ROLLBACK", []),
                     erlang:raise(Err, Reason, erlang:get_stacktrace())
             after
                 pooler:return_member(qs_db_pool, Worker, ok)

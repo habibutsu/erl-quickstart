@@ -50,19 +50,26 @@ handle_info(open_connection, State) ->
             {noreply, UpdState};
         {error, UpdState} ->
             {noreply, reconnect(UpdState)}
-    end;    
+    end;
+
+handle_info({'EXIT', Pid, Reason}, #state{connection = C} = State) when Pid == C ->
+    lager:error("Connection closed with reason: ~p", [Reason]),
+    close_connection(State),
+    {noreply, reconnect(State)};
+
 handle_info(Message, State) ->
-    lager:info("Info / Msg: ~p, State: ~p", [Message, State]),
+    lager:debug("Info / Msg: ~p, State: ~p", [Message, State]),
     {noreply, State}.
 
 terminate(Reason, State) ->
-    lager:info("Terminate / Reason: ~p, State: ~p", [Reason, State]),
-    ok.
+    lager:debug("Terminate / Reason: ~p, State: ~p", [Reason, State]),
+    normal.
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-% =============================================================================
+%% -- internal functions --
+
 open_connection(#state{params = Params} = State) ->
 
     #epgsql_params{
@@ -71,18 +78,18 @@ open_connection(#state{params = Params} = State) ->
         username           = Username,
         password           = Password,
         database           = Database,
-        connection_timeout = ConnectionTimeout,
-        query_timeout      = QueryTimeout
+        connection_timeout = ConnectionTimeout
     } = Params,
 
-    Res = epgsql:connect(Host, Username, Password, [
+    Res = epgsql:connect(Host, Username, Password, [        
+        {port, Port},
         {database, Database},
         {timeout, ConnectionTimeout}
     ]),
     case Res of
-        {ok, C} ->
+        {ok, Sock} ->
             {ok, State#state{
-                connection=C,
+                connection=Sock,
                 reconnect_attempt=0}};
         {error, Reason} ->
             lager:error("Connect fail: ~p", [Reason]),
@@ -90,7 +97,9 @@ open_connection(#state{params = Params} = State) ->
     end.
 
 close_connection(State) ->
-    ok.
+    Connection = State#state.connection,
+    epgsql:close(Connection),
+    #state{connection = undefined}.
 
 reconnect(#state{
         reconnect_attempt = R,

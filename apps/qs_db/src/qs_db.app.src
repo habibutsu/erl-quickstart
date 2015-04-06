@@ -6,7 +6,8 @@
         kernel,
         stdlib,
         lager,
-        pooler
+        pooler,
+        epgsql
     ]},
     {mod, { qs_db_app, []}},
     {env, []}

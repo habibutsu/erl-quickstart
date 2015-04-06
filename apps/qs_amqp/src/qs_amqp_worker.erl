@@ -80,7 +80,7 @@ terminate(Reason, State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-% =============================================================================
+%% -- internal functions --
 
 open_connection(State) ->
     lager:info("Connect ~p", [State#state.params]),
