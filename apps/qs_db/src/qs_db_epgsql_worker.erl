@@ -64,13 +64,16 @@ code_change(_OldVsn, State, _Extra) ->
 
 % =============================================================================
 open_connection(#state{params = Params} = State) ->
+
     #epgsql_params{
-        connection_timeout = ConnectionTimeout,
         host               = Host,
         port               = Port,
         username           = Username,
         password           = Password,
-        database           = Database} = Params,
+        database           = Database,
+        connection_timeout = ConnectionTimeout,
+        query_timeout      = QueryTimeout
+    } = Params,
 
     Res = epgsql:connect(Host, Username, Password, [
         {database, Database},
@@ -78,9 +81,9 @@ open_connection(#state{params = Params} = State) ->
     ]),
     case Res of
         {ok, C} ->
-            State#state{
+            {ok, State#state{
                 connection=C,
-                reconnect_attempt=0};
+                reconnect_attempt=0}};
         {error, Reason} ->
             lager:error("Connect fail: ~p", [Reason]),
             {error, State}
