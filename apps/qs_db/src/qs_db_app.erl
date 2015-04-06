@@ -11,7 +11,8 @@
 
 start(_StartType, _StartArgs) ->
     register(?MODULE, self()),
-    qs_db:start_pool(),
+    %qs_db:start_pool(),
+    qs_db:start_pool(epgsql),
     {ok, self()}.
 
 stop(_State) ->

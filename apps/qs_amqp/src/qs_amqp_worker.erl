@@ -80,6 +80,8 @@ terminate(Reason, State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
+% =============================================================================
+
 open_connection(State) ->
     lager:info("Connect ~p", [State#state.params]),
     case amqp_connection:start(State#state.params) of
@@ -136,14 +138,12 @@ close_channel(State) ->
 reconnect(#state{
         reconnect_attempt = R,
         reconnect_timeout = T} = State) ->
-    case T of
-        ?MAX_RECONNECT_TIMEOUT ->
+    case T > ?MAX_RECONNECT_TIMEOUT of
+        true ->
             reconnect_after(R, ?MIN_RECONNECT_TIMEOUT, T),
             State#state{reconnect_attempt = R + 1};
         _ ->
-            T2 = min(
-                exponential_backoff(R, ?MIN_RECONNECT_TIMEOUT),
-                ?MAX_RECONNECT_TIMEOUT),
+            T2 = exponential_backoff(R, ?MIN_RECONNECT_TIMEOUT),
             reconnect_after(R, ?MIN_RECONNECT_TIMEOUT, T2),
             State#state{reconnect_attempt=R + 1, reconnect_timeout=T2}
     end.
