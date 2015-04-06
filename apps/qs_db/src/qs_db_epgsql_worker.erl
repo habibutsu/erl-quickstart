@@ -35,6 +35,16 @@ init(Params) ->
     self() ! open_connection,
     {ok, #state{params=Params}}.
 
+handle_call(_Message}, _From, #state{connection = undefined} = State) ->
+    {reply, {error, no_connection}, State};
+handle_call({equery, Stmt, Params}, From, State) ->
+    TStart = now(),
+    Result = epgsql:equery(State#state.connection, Stmt, Params),
+    Time = timer:now_diff(now(), TStart),
+    lager:debug(
+        "Stmt=~p, Params=~p, Time=~p ms, Result=~p",
+        [Stmt, Params, Time / 1.0e3, Result]),
+    {reply, Result, State};
 handle_call(Message, From, State) ->
     lager:info(
         "Call / Message: ~p, From: ~p, State: ~p", [Message, From, State]),
@@ -53,7 +63,7 @@ handle_info(open_connection, State) ->
     end;
 
 handle_info({'EXIT', Pid, Reason}, #state{connection = C} = State) when Pid == C ->
-    lager:error("Connection closed with reason: ~p", [Reason]),
+    lager:error("Exit with reason: ~p", [Reason]),
     close_connection(State),
     {noreply, reconnect(State)};
 
