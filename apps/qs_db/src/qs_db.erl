@@ -82,6 +82,6 @@ transaction(Fun) ->
             end;
         error_no_members ->
             PoolStats = pooler:pool_stats(qs_db_pool),
-            lager:error("Pool overload: ~p", [PoolStats]),
+            lager:warning("Pool overload: ~p", [PoolStats]),
             {error, no_members}
     end.

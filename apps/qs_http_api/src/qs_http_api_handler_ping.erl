@@ -24,10 +24,15 @@ handle(Req, State) ->
         {<<"service">>, Service},
         {<<"applications">>, Applications}
     ]},
-    qs_db:equery("select 1;", []),
-    Headers = [{<<"Content-Type">>, <<"application/json">>}],
-    {ok, Req2} = cowboy_req:reply(200, Headers, jiffy:encode(Reply), Req),
-    {ok, Req2, State}.
+
+    {ok, Response} = case qs_db:equery("select 1;", []) of
+        {ok, _Columns, _Result} ->
+            Headers = [{<<"Content-Type">>, <<"application/json">>}],
+            cowboy_req:reply(200, Headers, jiffy:encode(Reply), Req);
+        {error, _} ->
+            cowboy_req:reply(503, Req)
+    end,
+    {ok, Response, State}.
 
 
 terminate(_Reason, _Req, _State) ->
