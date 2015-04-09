@@ -1,0 +1,13 @@
+{application, qs_http_api, [
+    {description, ""},
+    {vsn, "1"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        lager,
+        cowboy
+    ]},
+    {mod, { qs_http_api_app, []}},
+    {env, []}
+]}.

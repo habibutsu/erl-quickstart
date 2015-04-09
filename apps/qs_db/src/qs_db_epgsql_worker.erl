@@ -35,7 +35,7 @@ init(Params) ->
     self() ! open_connection,
     {ok, #state{params=Params}}.
 
-handle_call(_Message}, _From, #state{connection = undefined} = State) ->
+handle_call({_Message}, _From, #state{connection = undefined} = State) ->
     {reply, {error, no_connection}, State};
 handle_call({equery, Stmt, Params}, From, State) ->
     TStart = now(),

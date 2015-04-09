@@ -5,6 +5,20 @@ ERL_PATH		=\
 	-pa $(shell pwd)/deps/*/ebin \
 	-pa $(shell pwd)/apps/*/ebin
 
+define GNUPLOT_SCRIPT
+    set size 1, 1
+    set output 'result_ab.jpg'
+    set title 'Benchmark testing'
+    set key left top
+    set grid y
+    set xlabel 'requests'
+    set ylabel 'response time (ms)'
+    set datafile separator '\t'
+    plot 'result_ab.dat' every ::2 using 5 title 'response time' with lines
+    exit
+endef
+
+
 get-deps:
 	${REBAR} get-deps
 
@@ -14,3 +28,7 @@ compile:
 shell: get-deps compile
 	erl ${ERL_PATH} -args_file etc/vm.args -config etc/app.config \
 	-eval "lists:foreach(fun(A) -> {ok, _} = application:ensure_all_started(A) end, [${APPS}])."
+
+benchmark:
+	ab -c 100 -n 1000 -g "var/result_ab.dat" "http://127.0.0.1:8080/ping"
+	echo -e "${GNUPLOT_SCRIPT}"| gnuplot

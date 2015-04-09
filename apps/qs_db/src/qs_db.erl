@@ -58,7 +58,7 @@ stop_pool() ->
 equery(Stmt, Params) ->
     transaction(
         fun(Worker) ->
-            equery({worker, Worker}, {equery, Stmt, Params}, infinity)
+            equery({worker, Worker}, Stmt, [])
         end).
 
 equery({worker, Worker}, Stmt, Params) ->
